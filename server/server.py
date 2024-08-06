@@ -3,6 +3,10 @@ import websockets
 import cv2
 import numpy as np
 
+
+async def init_card(websocket, card):
+    await websocket.send(f'ic {card}')
+
 async def receive_video(websocket, path):
     try:
         while True:
@@ -10,6 +14,9 @@ async def receive_video(websocket, path):
             nparr = np.frombuffer(frame_data, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             # cv2.imshow('Received Frame', frame)
+            
+            # send data back to client
+            await websocket.send('ic rosa')
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
