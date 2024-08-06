@@ -6,6 +6,8 @@ const Player = ({ otter, name, setOtters, otters }) => {
   const [clicked, setClicked] = useState(false);
   const audioRef = useRef(null);
 
+  const [name2, setName] = useState(name);
+
   const handlePlaySound = () => {
     if (audioRef.current) {
       audioRef.current.play();
@@ -14,7 +16,7 @@ const Player = ({ otter, name, setOtters, otters }) => {
 
   return (
     <AnimatePresence>
-      <audio ref={audioRef} src="/soundfx/pop.mp3"  />
+      <audio ref={audioRef} src="/soundfx/pop.mp3" />
       <motion.div
         layout
         className="flex flex-row duration-300 transition-all gap-2"
@@ -48,7 +50,21 @@ const Player = ({ otter, name, setOtters, otters }) => {
               height={1000}
               className="w-[77px] h-[77px] object-cover rounded-full border-[6px] border-[#2963CD]"
             />
-            <h1 className="text-3xl">{name}</h1>
+            <input
+              className="text-3xl bg-transparent border-none outline-none"
+              value={name2}
+              onChange={(e) => {
+                setOtters(
+                  otters.map((o) => {
+                    if (o.name === name) {
+                      return { ...o, name: e.target.value };
+                    }
+                    return o;
+                  })
+                );
+                setName(e.target.value);
+              }}
+            ></input>
           </div>
           <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.8 }}>
             <Image

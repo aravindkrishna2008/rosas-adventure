@@ -72,7 +72,7 @@ export default function WebcamStream() {
     <div>
       {isConnected ? (
         <video
-          className="h-[548px] w-[465px] object-cover rounded-xl"
+          className={`h-[732px] w-[588px] object-cover rounded-xl`}
           ref={videoRef}
           autoPlay
           playsInline

@@ -1,11 +1,9 @@
 "use client";
 import Image from "next/image";
-import WebcamStream from "./components/WebsocketComponent";
-import Player from "./components/Player";
+import WebcamStream from "./components/WebSocket/WebsocketComponentSmall";
+import Player from "./components/MainPage/Player";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
-
-import AudioPlayer from "./components/BackgroundMusic";
 
 export default function Home() {
   const [otters, setOtters] = useState([
@@ -64,7 +62,7 @@ export default function Home() {
             audioRef.current.play();
             handlePlaySound();
           }}
-          className="absolute z-10 top-4 right-4 w-[40px] h-[40px] rounded-full bg-[#2963CD] flex items-center justify-center"
+          className="absolute z-10 top-4 right-4 w-[24px] h-[24px] rounded-full bg-[#2963CD] flex items-center justify-center"
         >
           <Image src="/icons/no_sound.svg" width={1000} height={1000} />
         </motion.button>
@@ -77,7 +75,7 @@ export default function Home() {
             audioRef.current.pause();
             handlePlaySound();
           }}
-          className="absolute z-10 top-4 right-4 w-[40px] h-[40px] rounded-full bg-[#2963CD] flex items-center justify-center"
+          className="absolute z-10 top-4 right-4 w-[24px] h-[24px] rounded-full bg-[#2963CD] flex items-center justify-center"
         >
           <Image src="/icons/sound.svg" width={1000} height={1000} />
         </motion.button>

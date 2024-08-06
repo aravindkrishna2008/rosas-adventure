@@ -1,6 +1,5 @@
 "use client";
 import { Inter } from "next/font/google";
-import BackgroundMusic from "./components/BackgroundMusic";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
