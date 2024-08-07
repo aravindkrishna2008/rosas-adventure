@@ -1,6 +1,6 @@
 import Player from "./Player";
 
-const PlayerCards = () => {
+const PlayerCards = ({ otters }) => {
   return (
     <div
       style={{
@@ -11,10 +11,14 @@ const PlayerCards = () => {
     >
       <h1 className="text-3xl font-semibold">Next:</h1>
       <div className="flex flex-row mt-[13px] gap-6">
-        <Player name="Player 1" otter="otter1" loc="Alcatraz Island" />
-        <Player name="Player 1" otter="otter1" loc="Alcatraz Island" />
-        <Player name="Player 1" otter="otter1" loc="Alcatraz Island" />
-        <Player name="Player 1" otter="otter1" loc="Alcatraz Island" />
+        {otters.map((otter, index) => (
+          <Player
+            key={index}
+            name={otter.name}
+            otter={otter.otter}
+            loc={otter.loc}
+          />
+        ))}
       </div>
     </div>
   );

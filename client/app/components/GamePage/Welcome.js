@@ -3,7 +3,7 @@ import TimeLine from "./Timeline";
 import Player from "./Player";
 import { motion } from "framer-motion";
 
-const Welcome = () => {
+const Welcome = ({ otters }) => {
   const otter = "otter1";
   const progress = [
     { title: "Explore the depths of Napa", completed: true },

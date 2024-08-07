@@ -1,6 +1,6 @@
 import cv2
 
-def scanFromQRCodeFromPath(i):
+def scanFromQRCode(i):
     qcd = cv2.QRCodeDetector()
     rtvl, info, points =  qcd.detectAndDecode(i)
     return rtvl, info, points
@@ -14,4 +14,7 @@ def write(img, points, decoded_info):
 
     cv2.imwrite('./qrcode_opencv.jpg', img)
 
-rtvl, info, points = scanFromQRCodeFromPath(cv2.imread("./code.png"))
+if __name__ == "__main__":
+    rtvl, info, points = scanFromQRCode(cv2.imread("./code2.PNG"))
+
+

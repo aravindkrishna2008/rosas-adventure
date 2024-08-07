@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export default function WebcamStream({ width = 465, height = 548 }) {
+export default function WebcamStream() {
   const videoRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef(null);

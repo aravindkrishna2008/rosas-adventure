@@ -2,21 +2,41 @@ import asyncio
 import websockets
 import cv2
 import numpy as np
+from qrcode import scanFromQRCode, write
 
+players = ()
 
-async def init_card(websocket, card):
-    await websocket.send(f'ic {card}')
-
-async def receive_video(websocket, path):
+async def handle_connection(websocket, path):
+    global players
     try:
+        # send all players to client
+        playerString = 'ig '
+        for player in players:
+            playerString = playerString + player + ' alcatraz_island '
+        await websocket.send(playerString)
         while True:
-            frame_data = await websocket.recv()
-            nparr = np.frombuffer(frame_data, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            # cv2.imshow('Received Frame', frame)
+            message = await websocket.recv()
             
-            # send data back to client
-            await websocket.send('ic rosa')
+            if isinstance(message, str):
+                print(f"Received text message: {message}")
+                #  add more logic here to process the text message
+                await websocket.send(f"Server received your message: {message}")
+            else:
+                # Handle binary data (video frame)
+                nparr = np.frombuffer(message, np.uint8)
+                frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                rtvl, info, points = scanFromQRCode(frame)
+                if rtvl:
+                    print(rtvl)
+                    rtvl_array = rtvl.split(' ')
+                    action = rtvl_array[0]
+                    if (action == 'p'):
+                        print("ccccccccccc")
+                        if rtvl_array[1] not in players:
+                            players = players + (rtvl_array[1],)
+                            print(players)
+                            await websocket.send('ic ' + rtvl_array[1])
+                
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -25,7 +45,7 @@ async def receive_video(websocket, path):
     finally:
         cv2.destroyAllWindows()
 
-start_server = websockets.serve(receive_video, "localhost", 8765)
+start_server = websockets.serve(handle_connection, "localhost", 8765)
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()

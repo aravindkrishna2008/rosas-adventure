@@ -3,16 +3,53 @@ import Image from "next/image";
 import WebcamStream from "../components/WebSocket/WebSocketComponentLarge";
 import Welcome from "../components/GamePage/Welcome";
 import { motion } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import PlayerCards from "../components/GamePage/PlayersCards";
 
 export default function Home() {
-  const [otters, setOtters] = useState([
-    { name: "Player 1", otter: "otter1" },
-    { name: "Bella", otter: "otter1" },
-    { name: "Luna", otter: "otter1" },
-  ]);
+  const wsRef = useRef(null);
+  const [otters, _setOtters] = useState([]);
+  const ottersRef = useRef(otters);
+  const setOtters = (data) => {
+    ottersRef.current = data;
+    _setOtters(data);
+  };
+
+  useEffect(() => {
+    wsRef.current = new WebSocket("ws://localhost:8765");
+
+    wsRef.current.onopen = () => {
+      console.log("Connected to WebSocket");
+    };
+
+    wsRef.current.onclose = () => {
+      console.log("Disconnected from WebSocket");
+    };
+
+    wsRef.current.onmessage = (event) => {
+      console.log(event.data);
+      if (event.data.split(" ")[0] === "ig") {
+        for (let i = 1; i < event.data.split(" ").length; i += 2) {
+          if (event.data.split(" ")[i] === "") {
+            continue;
+          }
+          const name = event.data.split(" ")[i];
+          const loc = event.data.split(" ")[i + 1];
+          setOtters([...ottersRef.current, { name, otter: "otter1", loc }]);
+        }
+      }
+    };
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+
+      console.log("Disconnected from WebSocket");
+    };
+  }, []);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -25,7 +62,11 @@ export default function Home() {
     },
   };
 
-  const pages = [<WebcamStream />, <Welcome />, <PlayerCards />];
+  const pages = [
+    <WebcamStream />,
+    <Welcome />,
+    <PlayerCards otters={otters} />,
+  ];
   const [page, setPage] = useState([0, 1]);
 
   const handleNextPage = () => {
