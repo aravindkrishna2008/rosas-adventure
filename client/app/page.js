@@ -70,7 +70,7 @@ export default function Home() {
         setOtters([...ottersRef.current, { name, otter: "otter1" }]);
       }
       if (event.data.split(" ")[0] === "ig") {
-        for (let i = 1; i < event.data.split(" ").length; i += 1) {
+        for (let i = 1; i < event.data.split(" ").length; i += 2) {
           if (event.data.split(" ")[i] === "") {
             continue;
           }

@@ -2,25 +2,42 @@ import asyncio
 import websockets
 import cv2
 import numpy as np
-from qrcode import scanFromQRCode, write
+from qrcode import scanFromQRCode
+
+from game import Game
+from otter import Otter
 
 players = ()
+current_websocket = None
 
 async def handle_connection(websocket, path):
-    global players
+    global players, current_websocket
+
+    # If there's an existing connection, close it
+    if current_websocket is not None:
+        try:
+            await current_websocket.close()
+        except:
+            pass
+
+    # Update the current websocket connection
+    current_websocket = websocket
+
+    game = Game([])
     try:
         # send all players to client
         playerString = 'ig '
         for player in players:
             playerString = playerString + player + ' alcatraz_island '
         await websocket.send(playerString)
+
         while True:
             message = await websocket.recv()
             
             if isinstance(message, str):
                 print(f"Received text message: {message}")
-                #  add more logic here to process the text message
-                await websocket.send(f"Server received your message: {message}")
+                # Add more logic here to process the text message
+                # await websocket.send(f"Server received your message: {message}")
             else:
                 # Handle binary data (video frame)
                 nparr = np.frombuffer(message, np.uint8)
@@ -35,8 +52,11 @@ async def handle_connection(websocket, path):
                         if rtvl_array[1] not in players:
                             players = players + (rtvl_array[1],)
                             print(players)
+                            game.add_player(Otter(rtvl_array[1]))
                             await websocket.send('ic ' + rtvl_array[1])
+                            # game.print_players()
                 
+                cv2.imshow('frame', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
