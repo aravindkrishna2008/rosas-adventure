@@ -3,10 +3,7 @@ import Image from "next/image";
 import Player from "./components/MainPage/Player";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-
 import { useRouter } from "next/navigation";
-
-import Link from "next/link";
 
 export default function Home() {
   const [otters, _setOtters] = useState([]);
@@ -16,6 +13,7 @@ export default function Home() {
     ottersRef.current = data;
     _setOtters(data);
   };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,8 +25,6 @@ export default function Home() {
       },
     },
   };
-
-  const [mute, setMute] = useState(true);
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
@@ -42,93 +38,9 @@ export default function Home() {
     },
   };
 
-  const videoRef = useRef(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef(null);
-
-  useEffect(() => {
-    // Set up WebSocket connection
-    wsRef.current = new WebSocket("ws://localhost:8765");
-
-    wsRef.current.onopen = () => {
-      console.log("Connected to WebSocket");
-      setIsConnected(true);
-      startStreaming();
-    };
-
-    wsRef.current.onclose = () => {
-      console.log("Disconnected from WebSocket");
-      setIsConnected(false);
-    };
-
-    // Add onmessage handler
-    wsRef.current.onmessage = (event) => {
-      console.log(event.data);
-      if (event.data.split(" ")[0] === "ic") {
-        const name = event.data.split(" ")[1];
-        const otter = event.data.split(" ")[2];
-        setOtters([...ottersRef.current, { name, otter: "otter1" }]);
-      }
-      if (event.data.split(" ")[0] === "ig") {
-        for (let i = 1; i < event.data.split(" ").length; i += 2) {
-          if (event.data.split(" ")[i] === "") {
-            continue;
-          }
-          const name = event.data.split(" ")[i];
-          setOtters([...ottersRef.current, { name, otter: "otter1" }]);
-        }
-      }
-    };
-
-    // Clean up
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  const startStreaming = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-
-      // Set up canvas for capturing video frames
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      const video = videoRef.current;
-
-      const sendFrame = () => {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          // Convert frame to JPEG and send via WebSocket
-          canvas.toBlob(
-            (blob) => {
-              if (wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(blob);
-              }
-            },
-            "image/jpeg",
-            0.8
-          );
-        }
-        requestAnimationFrame(sendFrame);
-      };
-
-      video.onloadedmetadata = () => {
-        sendFrame();
-      };
-    } catch (error) {
-      console.error("Error accessing webcam:", error);
-    }
-  };
+  const [mute, setMute] = useState(true);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const canvasRef = useRef(null);
 
   const audioRef = useRef(null);
 
@@ -137,6 +49,57 @@ export default function Home() {
       audioRef.current.play();
     }
   };
+
+  const [imageData, setImageData] = useState(null);
+  const videoRef = useRef(null);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      videoRef.current.srcObject = stream;
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+    }
+  };
+
+  const capturePhoto = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext("2d").drawImage(videoRef.current, 0, 0);
+    canvas.toBlob((blob) => {
+      setImageData(URL.createObjectURL(blob));
+      sendToServer(blob);
+    }, "image/png");
+  };
+
+  const sendToServer = async (imageBlob) => {
+    const formData = new FormData();
+    formData.append("image", imageBlob, "captured_image.png");
+    formData.append("action", "scan");
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/qrcode", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.action !== "unknown") {
+        const player = result.player;
+        setOtters([...otters, { name: player, otter: "otter1" }]);
+      }
+      // console.log("Server response:", result);
+      // console.log(result.player);
+    } catch (error) {
+      console.error("Error sending image to server:", error);
+    }
+  };
+
+  useEffect(() => {
+    startCamera();
+  }, []);
 
   return (
     <motion.div
@@ -166,7 +129,6 @@ export default function Home() {
           onClick={() => {
             setMute(true);
             audioRef.current.pause();
-            handlePlaySound();
           }}
           className="absolute z-10 top-4 right-4 w-[24px] h-[24px] rounded-full bg-[#2963CD] flex items-center justify-center"
         >
@@ -182,24 +144,28 @@ export default function Home() {
       />
       <motion.div className="relative text-center" variants={itemVariants}>
         <h1 className="text-6xl font-semibold">Rosa's Adventure</h1>
-        <h2 className="text-3xl">scan player cards to get started</h2>
+        <h2 className="text-3xl">Scan player cards to get started</h2>
       </motion.div>
       <motion.div
         className="relative gap-[57px] flex flex-row"
         variants={itemVariants}
       >
-        {isConnected ? (
-          <video
-            className={`h-[548px] w-[465px] object-cover rounded-xl`}
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-          />
-        ) : (
-          <p>Connecting to server...</p>
-        )}
-        <div className="flex flex-col items-end justify-between">
+        <div className="flex flex-col items-center">
+          <motion.button
+            onClick={capturePhoto}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <video
+              className={`h-[548px] w-[465px] object-cover rounded-xl`}
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+            />
+          </motion.button>
+        </div>
+        <div className="flex flex-col w-[649px] h-[100%] items-end justify-between">
           <div className="flex flex-col gap-4">
             {otters.map((otter, index) => (
               <Player

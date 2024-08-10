@@ -4,7 +4,6 @@ import WebcamStream from "../components/WebSocket/WebSocketComponentLarge";
 import Welcome from "../components/GamePage/Welcome";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-
 import PlayerCards from "../components/GamePage/PlayersCards";
 
 export default function Home() {
@@ -16,39 +15,100 @@ export default function Home() {
     _setOtters(data);
   };
 
+  const [currentOtter, _setCurrentOtter] = useState({
+    name: "",
+    otter: "",
+    loc: "",
+  });
+  const currentOtterRef = useRef(currentOtter);
+  const setCurrentOtter = (data) => {
+    currentOtterRef.current = data;
+    _setCurrentOtter(data);
+  };
+
+  const getPlayers = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:5000/get_players");
+      const result = await response.json();
+      setOtters(result.players);
+      console.log(result.players[result.current_player].name);
+      setCurrentOtter(result.players[result.current_player]);
+    } catch (error) {
+      console.error("Error getting players:", error);
+    }
+  };
+
+  const [page, setPage] = useState([0, 1]);
+
+  const [imageData, setImageData] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const startCamera = async () => {
+    if (streamRef.current) return; // If we already have a stream, don't create a new one
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+    }
+  };
+
+  const connectStreamToVideo = () => {
+    if (streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  };
+
+  const capturePhoto = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext("2d").drawImage(videoRef.current, 0, 0);
+    canvas.toBlob((blob) => {
+      setImageData(URL.createObjectURL(blob));
+      sendToServer(blob);
+    }, "image/png");
+  };
+
+  const sendToServer = async (imageBlob) => {
+    const formData = new FormData();
+    formData.append("image", imageBlob, "captured_image.png");
+    formData.append("action", "scan");
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/qrcode", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.action !== "unknown") {
+        const player = result.player;
+        setOtters([...otters, { name: player, otter: "otter1" }]);
+      }
+    } catch (error) {
+      console.error("Error sending image to server:", error);
+    }
+  };
+
   useEffect(() => {
-    wsRef.current = new WebSocket("ws://localhost:8765");
-
-    wsRef.current.onopen = () => {
-      console.log("Connected to WebSocket");
-    };
-
-    wsRef.current.onclose = () => {
-      console.log("Disconnected from WebSocket");
-    };
-
-    wsRef.current.onmessage = (event) => {
-      console.log(event.data);
-      if (event.data.split(" ")[0] === "ig") {
-        for (let i = 1; i < event.data.split(" ").length; i += 2) {
-          if (event.data.split(" ")[i] === "") {
-            continue;
-          }
-          const name = event.data.split(" ")[i];
-          const loc = event.data.split(" ")[i + 1];
-          setOtters([...ottersRef.current, { name, otter: "otter1", loc }]);
-        }
-      }
-    };
-
+    startCamera();
+    getPlayers();
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
-
-      console.log("Disconnected from WebSocket");
     };
   }, []);
+
+  useEffect(() => {
+    connectStreamToVideo();
+  }, [page]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -63,11 +123,26 @@ export default function Home() {
   };
 
   const pages = [
-    <WebcamStream />,
-    <Welcome />,
-    <PlayerCards otters={otters} />,
+    <motion.button
+      key="video"
+      onClick={async () => {
+        capturePhoto();
+        getPlayers();
+      }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <video
+        className={`h-[712px] w-[588px] object-cover rounded-xl`}
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+      />
+    </motion.button>,
+    <Welcome key="welcome" currentOtter={currentOtterRef.current} />,
+    <PlayerCards key="playerCards" otters={otters} />,
   ];
-  const [page, setPage] = useState([0, 1]);
 
   const handleNextPage = () => {
     if (page[1] === pages.length - 1) {
@@ -126,7 +201,12 @@ export default function Home() {
           }}
           className="absolute z-10 top-4 right-4 w-[24px] h-[24px] rounded-full bg-[#2963CD] flex items-center justify-center"
         >
-          <Image src="/icons/no_sound.svg" width={1000} height={1000} />
+          <Image
+            src="/icons/no_sound.svg"
+            width={1000}
+            height={1000}
+            alt="Mute"
+          />
         </motion.button>
       ) : (
         <motion.button
@@ -139,7 +219,12 @@ export default function Home() {
           }}
           className="absolute z-10 top-4 right-4 w-[24px] h-[px] rounded-full bg-[#2963CD] flex items-center justify-center"
         >
-          <Image src="/icons/sound.svg" width={1000} height={1000} />
+          <Image
+            src="/icons/sound.svg"
+            width={1000}
+            height={1000}
+            alt="Unmute"
+          />
         </motion.button>
       )}
       <Image
@@ -153,12 +238,11 @@ export default function Home() {
         className="relative gap-[57px] flex flex-row"
         variants={itemVariants}
       >
-        {/* <WebcamStream width={100} />
-        <Welcome /> */}
         {pages.map((p, index) => {
           if (index >= page[0] && index <= page[1]) {
             return p;
           }
+          return null;
         })}
       </motion.div>
       {page[1] != 2 ? (
@@ -166,6 +250,7 @@ export default function Home() {
           src="/icons/chevron.svg"
           width={1000}
           height={1000}
+          alt="Next"
           className="w-[24px] h-[24px] absolute right-4 cursor-pointer"
           onClick={handleNextPage}
         />
@@ -174,6 +259,7 @@ export default function Home() {
           src="/icons/chevron.svg"
           width={1000}
           height={1000}
+          alt="Previous"
           className="w-[24px] h-[24px] absolute left-4 cursor-pointer rotate-180"
           onClick={handlePrevPage}
         />
